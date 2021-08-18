@@ -2,41 +2,71 @@ import requests
 import time
 import telegram
 import os
-
-api_url = os.getenv('API_URL')
-dvmn_token = os.getenv('DEVMAN_TOKEN')
-tg_token = os.getenv('TELEGRAM_TOKEN')
-chat_id = int(os.getenv('CHAT_ID'))
-bot = telegram.Bot(token=tg_token)
-
-headers = {"Authorization" : dvmn_token}
-timestamp = time.time()
+from dotenv import load_dotenv
+import textwrap
 
 
-while True:
-    try:
-        params = {'timestamp': timestamp}
-        response = requests.get(api_url, headers=headers, params=params)
-        response.raise_for_status()
-        response_data = response.json()
+def run_bot(bot, chat_id, dvmn_token):
+    api_url = 'https://dvmn.org/api/long_polling/'
+    headers = {"Authorization" : dvmn_token}
+    timestamp = time.time()
 
-        if response_data['status'] == 'found':
-            new_attempt = response_data['new_attempts'][0]
-            lesson = new_attempt['lesson_title']
-            is_negative = new_attempt['is_negative']
-            timestamp = response_data['last_attempt_timestamp']
-            lesson_url = f'https://dvmn.org{new_attempt["lesson_url"]}'
+    while True:
+        try:
+            params = {'timestamp': timestamp}
+            response = requests.get(api_url, headers=headers, params=params)
+            response.raise_for_status()
+            response_json = response.json()
 
-            if is_negative:
-                bot.send_message(chat_id=chat_id, text=f'🔥Преподаватель проверил работу🔥 - \n"{lesson}"\n\n'
-                f'🥺К сожалению, есть ошибки🥺\nПоправьте их и отправьте еще раз!\n\n'
-                f'{lesson_url}')
-            else:
-                bot.send_message(chat_id=chat_id, text='🔥Преподаватель проверил работу🔥 - \n"{lesson}"\n\n🚀Работа принята🚀\nТак держать!\n\n'
-                f'{lesson_url}')        
+            if response_json['status'] == 'found':
+                new_attempt = response_json['new_attempts'][0]
+                lesson = new_attempt['lesson_title']
+                is_negative = new_attempt['is_negative']
+                timestamp = response_json['last_attempt_timestamp']
+                lesson_url = f'https://dvmn.org{new_attempt["lesson_url"]}'
 
-        elif response_data['status'] == 'timeout':
-                timestamp = response_data['timestamp_to_request']
+                if is_negative:
+                    negative_message = f'''
+                    🔥Преподаватель проверил работу 
+                    "{lesson}"
 
-    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as e:
-        print(e)
+
+                    🥺К сожалению, есть ошибки🥺
+                    Поправьте их и отправьте еще раз!
+
+
+                    {lesson_url}'''
+                    bot.send_message(chat_id=chat_id, text=textwrap.dedent(negative_message))
+                else:
+                    positive_message = f'''
+                    🔥Преподаватель проверил работу
+                    "{lesson}"
+                    
+                    
+                    🚀Работа принята🚀
+                    Так держать!
+
+
+                    {lesson_url}'''
+                    bot.send_message(chat_id=chat_id, text=textwrap.dedent(positive_message))        
+
+            elif response_json['status'] == 'timeout':
+                    timestamp = response_json['timestamp_to_request']
+
+        except (requests.exceptions.ReadTimeout):
+            pass
+        except (requests.exceptions.ConnectionError):
+            time.sleep(10)
+
+
+def main():
+    load_dotenv()
+    dvmn_token = os.getenv('DEVMAN_TOKEN')
+    tg_token = os.getenv('TELEGRAM_TOKEN')
+    chat_id = int(os.getenv('CHAT_ID'))
+    bot = telegram.Bot(token=tg_token)
+    run_bot(bot, chat_id, dvmn_token)
+
+
+if __name__ == '__main__':
+    main()
