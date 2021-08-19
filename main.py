@@ -16,13 +16,13 @@ def run_bot(bot, chat_id, dvmn_token):
             params = {'timestamp': timestamp}
             response = requests.get(api_url, headers=headers, params=params)
             response.raise_for_status()
-            response_json = response.json()
+            review_status = response.json()
 
-            if response_json['status'] == 'found':
-                new_attempt = response_json['new_attempts'][0]
+            if review_status['status'] == 'found':
+                new_attempt = review_status['new_attempts'][0]
                 lesson = new_attempt['lesson_title']
                 is_negative = new_attempt['is_negative']
-                timestamp = response_json['last_attempt_timestamp']
+                timestamp = review_status['last_attempt_timestamp']
                 lesson_url = f'https://dvmn.org{new_attempt["lesson_url"]}'
 
                 if is_negative:
@@ -50,8 +50,8 @@ def run_bot(bot, chat_id, dvmn_token):
                     {lesson_url}'''
                     bot.send_message(chat_id=chat_id, text=textwrap.dedent(positive_message))        
 
-            elif response_json['status'] == 'timeout':
-                    timestamp = response_json['timestamp_to_request']
+            elif review_status['status'] == 'timeout':
+                    timestamp = review_status['timestamp_to_request']
 
         except (requests.exceptions.ReadTimeout):
             pass
