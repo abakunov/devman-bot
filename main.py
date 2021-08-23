@@ -64,6 +64,7 @@ def main():
     dvmn_token = os.getenv('DEVMAN_TOKEN')
     tg_token = os.getenv('TELEGRAM_TOKEN')
     chat_id = int(os.getenv('CHAT_ID'))
+    print("CHAT_ID - ", chat_id)
     bot = telegram.Bot(token=tg_token)
     run_bot(bot, chat_id, dvmn_token)
 
